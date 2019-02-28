@@ -4,11 +4,9 @@ defmodule Margarine.Application do
   use Application
 
   def start(_type, _args) do
-    :pg2.create(:aggregates)
-
     children = [
       Margarine.Storage,
-      Margarine.Aggregates,
+      Margarine.Cache,
       Plug.Cowboy.child_spec(scheme: :http, plug: Margarine.Router, options: [port: port()])
     ]
 
