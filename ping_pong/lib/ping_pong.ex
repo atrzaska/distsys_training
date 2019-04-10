@@ -63,6 +63,9 @@ defmodule PingPong do
 
     def init(producer) do
       # Your code goes here!!!
+      Process.monitor(producer)
+      send(producer, {:hello, self()})
+
       consume(0)
     end
 
@@ -70,10 +73,19 @@ defmodule PingPong do
       receive do
         {:check, ^expected, pid} ->
           send(pid, :expected)
+          consume(expected)
         {:check, other, pid} ->
-          send(pid, {:unexpected, other})
+          send(pid, {:unexpected, expected})
+          consume(expected)
 
-      # Your code goes here!!!
+        {:ping, ^expected} ->
+          consume(expected+1)
+        {:ping, other} ->
+          consume(expected)
+        {:DOWN, _, _, _, :noconnection} ->
+          consume(expected)
+        {:DOWN, _, _, _, reason} ->
+          consume(0)
       end
     end
   end

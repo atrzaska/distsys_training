@@ -44,11 +44,11 @@ defmodule MapReduce do
     reduce_jobs = for i <- 0..@reduce_count, do: {:reduce, i}
 
     {:ok, workers} = assign_work(map_jobs, fn pid, job ->
-      Worker.work(pid, name, job, &mod.map/1, @reduce_count)
+      Worker.work(pid, name, job, &mod.map/1, @map_count)
     end)
 
     {:ok, _} = assign_work(reduce_jobs, [], [], workers, fn pid, job ->
-      Worker.work(pid, name, job, &mod.reduce/2, @map_count)
+      Worker.work(pid, name, job, &mod.reduce/2, @reduce_count)
     end)
 
     result = Worker.merge(name, @reduce_count)
@@ -66,10 +66,29 @@ defmodule MapReduce do
 
     receive do
       {:ready, pid} ->
+        Process.monitor(pid)
         assign_work(jobs, pending, completed, [pid | workers], f)
 
       {:finished, pid, job} ->
         assign_work(jobs, pending -- [job], [job | completed], [pid | workers], f)
+
+      {:DOWN, _, _, pid, _} ->
+        job = get_failing_worker_and_job(pid, assignments)
+
+        if job do
+          assign_work([job | jobs], pending -- [job], completed, workers, f)
+        else
+          IO.puts("Could not find a job for a worker #{inspect pid}")
+          assign_work(jobs, pending, completed, workers, f)
+        end
+    end
+  end
+
+  def get_failing_worker_and_job(pid, assignments) do
+    assignment = assignments |> Enum.find(fn {worker, _} -> worker == pid end)
+
+    if assignment do
+      assignment |> elem(1)
     end
   end
 
@@ -92,4 +111,3 @@ defmodule MapReduce do
     end
   end
 end
-
