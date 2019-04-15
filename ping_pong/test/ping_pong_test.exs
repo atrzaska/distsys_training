@@ -13,24 +13,24 @@ defmodule PingPongTest do
 
     assert_receive {:hello, ^consumer}
 
-    send(consumer, {:ping, 0})
+    send(consumer, {:ping, 1})
     send(consumer, {:check, 1, self()})
     assert_receive :expected
 
-    send(consumer, {:ping, 1})
+    send(consumer, {:ping, 2})
     send(consumer, {:check, 2, self()})
     assert_receive :expected
 
-    send(consumer, {:ping, 2})
+    send(consumer, {:ping, 3})
     send(consumer, {:check, 3, self()})
     assert_receive :expected
 
-    send(consumer, {:ping, 4})
+    send(consumer, {:ping, 5})
     send(consumer, {:check, 5, self()})
-    assert_receive {:unexpected, 3}
+    assert_receive :expected
 
     send(consumer, {:ping, 3})
-    send(consumer, {:check, 4, self()})
+    send(consumer, {:check, 3, self()})
     assert_receive :expected
   end
 
@@ -38,12 +38,12 @@ defmodule PingPongTest do
     producer = Producer.start(self())
     consumer = Consumer.start(producer)
 
-    Producer.producer(producer)
-    send(consumer, {:check, 0, self()})
+    Producer.produce(producer)
+    send(consumer, {:check, 1, self()})
     assert_receive :expected
 
-    Producer.producer(producer)
-    send(consumer, {:check, 1, self()})
+    Producer.produce(producer)
+    send(consumer, {:check, 2, self()})
     assert_receive :expected
 
     Producer.crash(producer)

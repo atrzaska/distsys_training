@@ -1,21 +1,37 @@
 defmodule Margarine.Linker do
-  alias Margarine.Storage
+  alias Margarine.{Cache, Storage}
 
   def lookup(hash) do
+    with {:ok, url} <- Cache.lookup(code_key(hash)) do
+      {:ok, url}
+    else
+      _ ->
+        Storage.get(code_key(hash))
+    end
+
     # check cache on lookup
     case Storage.get(code_key(hash)) do
       {:ok, url} when not is_nil(url) ->
+        Cache.insert(code_key(hash), url)
         {:ok, url}
 
-      _ ->
-        {:error, :not_found}
+      {:error, :not_found} ->
+        case Storage.get(code_key(hash)) do
+          {:ok, url} when not is_nil(url) ->
+            Cache.insert(code_key(hash), url)
+            {:ok, url}
+
+          _ ->
+            {:error, :not_found}
+        end
     end
   end
 
   def create(url, code) do
     code = hash_or_code(url, code)
     # insert into cache
-    with :ok <- Storage.set(code_key(code), url) do
+    with :ok <- Storage.set(code_key(code), url),
+         :ok <- Cache.insert(code_key(code), url) do
       {:ok, code}
     end
   end

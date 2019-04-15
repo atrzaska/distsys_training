@@ -20,8 +20,8 @@ defmodule PingPong do
       end
     end
 
-    def crash do
-      send(:producer, :crash)
+    def crash(producer) do
+      send(producer, :crash)
     end
 
     def init(caller) do
@@ -38,8 +38,8 @@ defmodule PingPong do
     def producer(consumer, n) do
       receive do
         {:produce, pid} ->
-          Logger.info("Producing: #{n}")
-          send(consumer, {:ping, n})
+          Logger.info("Producing: #{n+1}")
+          send(consumer, {:ping, n+1})
           send(pid, :finished)
           producer(consumer, n+1)
 
@@ -62,7 +62,8 @@ defmodule PingPong do
     def stop, do: send(:consumer, :stop)
 
     def init(producer) do
-      # Your code goes here!!!
+      Process.monitor(producer)
+      send(producer, {:hello, self()})
       consume(0)
     end
 
@@ -70,10 +71,16 @@ defmodule PingPong do
       receive do
         {:check, ^expected, pid} ->
           send(pid, :expected)
+          consume(expected)
         {:check, other, pid} ->
-          send(pid, {:unexpected, other})
-
-      # Your code goes here!!!
+          send(pid, {:unexpected, expected})
+          consume(expected)
+        {:ping, other} ->
+          consume(other)
+        {:DOWN, _, _, _, :noconnection} ->
+          consume(expected)
+        {:DOWN, _, _, _, _} ->
+          consume(0)
       end
     end
   end
